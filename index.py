@@ -14,15 +14,18 @@ sBoxTable = tables.sBoxs
 
 # basic function to work with text
 def textToBin(text):
-	return ''.join(bin(int(ord(char)))[2:] for char in text)
+	return ''.join(format(ord(char), '08b') for char in text)
 
 def binToText(binary):
     # Split the binary string into 8-bit chunks
-    chunks = [binary[i:i+8] for i in range(0, len(binary), 8)]
+	while len(binary) >= 8 and binary[-4:] == '0000':
+		binary = binary[:-4]
+
+	chunks = [binary[i:i+8] for i in range(0, len(binary), 8)]
 
     # Convert each 8-bit chunk back to a character and join them
-    text = ''.join(chr(int(chunk, 2)) for chunk in chunks)
-    return text
+	text = ''.join(chr(int(chunk, 2)) for chunk in chunks)
+	return text
 
 def chunk_into_64_bits(input_data):
     # Split the input data into 64-bit blocks
@@ -91,17 +94,17 @@ def reverse_process_left_block(value, octet_index):
 
 
 
-def binTextToString(block):
-	resultedString = ''
-	if isinstance(block[0], list):
-		for subBlock in block:
-			for part in subBlock:
-				resultedString += binToText(part)
-	elif isinstance(block[0], str):
+def binTextToString(blocks):
+	# Concatenate all the blocks and remove any trailing zeroes
+	concatenated = ''
+	 
+	for block in blocks:
 		for part in block:
-				resultedString += binToText(part)
-	
-	return resultedString
+			concatenated += ''.join(part)
+	# Trim excess bits if the length is not a multiple of 8
+	concatenated = concatenated[:-(len(concatenated) % 8)] if len(concatenated) % 8 != 0 else concatenated
+	# Convert the concatenated binary string back to text
+	return binToText(concatenated)
 
 def binTextToHex(block):
     resultedHex = ''
@@ -132,7 +135,7 @@ def enterValue(isHexInputValue = False):
 	# key = str(input('Enter key:'))
 	# roundsOfEncryption = str(input('Enter number of encrypting rounds:'))
 	roundsOfEncryption = 1
-	textToEncrypt = "Oleksii" if not(isHexInputValue) else "df74a86282a83fb3"
+	textToEncrypt = "Oleksii" if not(isHexInputValue) else "fbfc5201adca1ef5"
 	key = "Shevchenko"
 	
 	print("Text:", textToEncrypt)
