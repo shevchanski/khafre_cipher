@@ -17,7 +17,7 @@ def generate_sboxes():
 			sBoxs[boxIndex][row] = [hex(val)[2:] for val in standardTable[boxIndex][j:j+32]]
 			j += 32
 	
-	print(sBoxs)
+	# print(sBoxs)
 	return sBoxs
 
 

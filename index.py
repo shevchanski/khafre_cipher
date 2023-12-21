@@ -8,7 +8,7 @@ BLOCK_LENGTH = 64
 KEY_LENGTH = 64
 HALF_BLOCK = round(BLOCK_LENGTH/2)
 
-sBoxTable = sBoxs.generate_sboxes()
+sBoxTable = tables.sBoxs
 
 # rgr
 
@@ -18,7 +18,7 @@ def textToBin(text):
 
 def binToText(binary):
     # Split the binary string into 8-bit chunks
-    chunks = [binary[i:i+7] for i in range(0, len(binary), 7)]
+    chunks = [binary[i:i+8] for i in range(0, len(binary), 8)]
 
     # Convert each 8-bit chunk back to a character and join them
     text = ''.join(chr(int(chunk, 2)) for chunk in chunks)
@@ -43,7 +43,6 @@ def xorBinOperation(text, key):
 	
 	encryptedText = ''
 	for i in range(len(text)):
-		# encryptedText += str(0) if text[i] == key[i] else str(1)
 		encryptedText += str(int(text[i]) ^ int(key[i]))
 
 	return encryptedText
@@ -51,15 +50,15 @@ def xorBinOperation(text, key):
 def cyclic_left_shift(bits, shift_amount):
     return bits[shift_amount:] + bits[:shift_amount]
 
+def cyclic_left_shift_revers(bits, shift_amount):
+    return bits[round(len(bits)-shift_amount):] + bits[:round(len(bits)-shift_amount)]
+
 # function to devide one block into sub-blocks
 def divideBlockBy2(block):
 	if(round(len(block)) != BLOCK_LENGTH):
 		raise Exception("Error: func 'divideBlockBy2' -> len of block is not 64 bites")
 	
 	resultBlock = [block[i:i+HALF_BLOCK] for i in range(0, round(len(block)), HALF_BLOCK)]
-	# for i in range(0, round(len(block)), HALF_BLOCK):
-	# 	resultBlock.append([block[i:i+HALF_BLOCK]])
-
 	return resultBlock
 
 def process_left_block(last_8_bits, octet_index):
@@ -69,11 +68,28 @@ def process_left_block(last_8_bits, octet_index):
 	for i in range(0, len(last_8_bits), round(len(last_8_bits)/4)):
 		sbox_row = last_8_bits[i:i+3] 
 		sbox_col = last_8_bits[i+3:i+8] 
-		print(f"rowIndex: {int(sbox_row, 2)}\ncolIndex: {int(sbox_col, 2)}")
 		output_bits.extend(bin(int(selected_sbox[int(sbox_row, 2)][int(sbox_col, 2)], 16))[2:].zfill(8))
 	returnedBlock = ''.join(output_bits)
-	# print(len(returnedBlock))
+
 	return returnedBlock
+
+def reverse_process_left_block(value, octet_index):
+	selected_sbox = sBoxTable[octet_index]
+	output_bits = []
+
+	for i in range(0, len(value), round(len(value)/4)):
+		searchedValue = value[i:i+8] 
+
+		for row_index, row in enumerate(selected_sbox):
+			for col_index, element in enumerate(row):
+				if element == hex(int(searchedValue, 2))[2:]:
+					output_bits.append(format(row_index, '03b')+format(col_index, '05b'))
+	
+	returnedBlock = ''.join(output_bits)
+
+	return returnedBlock
+
+
 
 def binTextToString(block):
 	resultedString = ''
@@ -87,37 +103,65 @@ def binTextToString(block):
 	
 	return resultedString
 
+def binTextToHex(block):
+    resultedHex = ''
+    if isinstance(block[0], list):
+        for subBlock in block:
+            for part in subBlock:
+                resultedHex += hex(int(part, 2))[2:]
+    elif isinstance(block[0], str):
+        for part in block:
+            resultedHex += hex(int(part, 2))[2:]
+    
+    return resultedHex
+
+def hexToBinText(hexString):
+    binText = ''
+    for hexChar in hexString:
+        binText += bin(int(hexChar, 16))[2:].zfill(4)
+    return binText
 
 
 
 
-def enterValue():
+
+
+
+def enterValue(isHexInputValue = False):
 	# textToEncrypt = str(input('Enter text to encrypt:'))
 	# key = str(input('Enter key:'))
 	# roundsOfEncryption = str(input('Enter number of encrypting rounds:'))
 	roundsOfEncryption = 1
-	textToEncrypt = "Oleksii"
+	textToEncrypt = "Oleksii" if not(isHexInputValue) else "df74a86282a83fb3"
 	key = "Shevchenko"
+	
 	print("Text:", textToEncrypt)
 	print("Key:", key)
-	binText = textToBin(textToEncrypt)
-	binKey = textToBin(key)
+
+	if not(isHexInputValue):
+		binText = textToBin(textToEncrypt)
+		binKey = textToBin(key)
+	else:
+		binText = hexToBinText(textToEncrypt)
+		binKey = textToBin(key)
+
 	print("\nbinText:", binText, len(binText))
 	print("binKey:", binKey, len(binKey))
 
 	# here we entered value to exact length
 	if(len(binText) > 64):
 		binText = chunk_into_64_bits(binText)
-	else:
+	elif len(binText) < 64:
 		binText = [zero_pad(binText)]
+	else:
+		binText = [binText]
 	if(len(binKey) > 64):
 		binKey = [chunk_into_64_bits(binKey)[0]]
-	else:
+	elif len(binKey) < 64:
 		binKey = [zero_pad(binKey)]
+	else:
+		binKey = [binKey]
 
-	print("\n\nFinal text:", binText , len(binText[0]))
-	print("\n\nFinal key:", binKey , len(binKey[0]))
-	
 	# next loop divides text with 64 bites length to two 32 length blocks
 	resultBinText = []
 	for binPart in binText:
@@ -125,10 +169,9 @@ def enterValue():
 	
 	resultBinKey = divideBlockBy2(binKey[0])
 
-	print(resultBinText, len(resultBinText[0]))
-	print(resultBinKey, len(resultBinText[0]))
-
 	return resultBinText, resultBinKey, roundsOfEncryption
+
+
 
 def khafreEncryption(block, round = 8):
 	roundNumber = 8 - round
@@ -146,7 +189,7 @@ def khafreEncryption(block, round = 8):
 	leftBlock = cyclic_left_shift(block[0], shiftAmount)
 	
 	resultedBlock = [xorRightAndChangedLeft, leftBlock]
-	if(roundNumber == 1):
+	if(round == 1):
 		return resultedBlock
 	return khafreEncryption(resultedBlock, round-1)
 
@@ -154,13 +197,14 @@ def khafreEncryption(block, round = 8):
 
 def KhafreCipher():
 	binTextToEncrypt, binKey, rounds = enterValue()
-	print(f"Text: {binTextToEncrypt}\n\nKey: {binKey}")
+
+	print(binTextToEncrypt)
 
 	for i in range(len(binTextToEncrypt)):
 		for j in range(len(binTextToEncrypt[i])):
 			binTextToEncrypt[i][j] = xorBinOperation(binTextToEncrypt[i][j], binKey[j])
 
-	print(binTextToEncrypt)
+	print(f"After Xor: {binTextToEncrypt}")
 
 	for _ in range(rounds):
 		for i in range(len(binTextToEncrypt)):
@@ -168,7 +212,7 @@ def KhafreCipher():
 			for j in range(len(binTextToEncrypt[i])):
 				binTextToEncrypt[i][j] = xorBinOperation(binTextToEncrypt[i][j], binKey[j])
 	
-	encryptedString = binTextToString(binTextToEncrypt)
+	encryptedString = binTextToHex(binTextToEncrypt)
 
 	return encryptedString
 	
@@ -180,29 +224,62 @@ def KhafreCipher():
 
 # enterValue()
 result = KhafreCipher()
-print(result)		
+print(result,"\n\n")		
 
-	
-# openedText = 'ORIGINAL'
+def khafreDecryption(block, round=0):
+	roundNumber = 7-round
+	shiftAmount = 0
 
-# Key = ''.join(str(random.randint(0,1)) for i in range(64))
+	if roundNumber == 2 or roundNumber == 3:
+		shiftAmount = 8
+	elif roundNumber == 6 or roundNumber == 7:
+		shiftAmount = 24
+	else:
+		shiftAmount = 16
 
-# binOpenedText = ''.join(bin(int(ord(char)))[2:] for char in openedText)
+	xoredRightAndChangedLeft = block[0]
+	reversedShiftedLeftBlock = cyclic_left_shift(block[1], -shiftAmount)
 
-# print(f"\nOpenede text -> {openedText}\n")
-# print(f"text in binary -> {binOpenedText}\nblock len -> {len(binOpenedText)}\n")
+    
 
-# block = addBitesToBlock(binOpenedText)
-# print(f"block -> {block}\nblock len -> {len(block)}\n")
-# permutatedBlock = permutate(block, tables.IP_table)
+	changedLeftBlock = process_left_block(reversedShiftedLeftBlock, roundNumber)
 
-# print(f"permutated block -> {permutatedBlock}\nblock len -> {len(permutatedBlock)}\n")
-# encryptedBlock = encrypt(permutatedBlock, Key)
+	# Perform the reverse XOR operation
+	rightBlock = xorBinOperation(xoredRightAndChangedLeft, changedLeftBlock)
 
-# print(f"encrypted block -> {encryptedBlock}\nblock len -> {len(encryptedBlock)}\n")
+	if round == 7:
+		return [reversedShiftedLeftBlock, rightBlock]
 
-# finallyPermutatedBlock = permutate(encryptedBlock, tables.finalIP_table)
-
-# print(f"finally permutated block -> {finallyPermutatedBlock}\nblock len -> {len(finallyPermutatedBlock)}\n")
+	resultedBlock = [reversedShiftedLeftBlock, rightBlock]
+	return khafreDecryption(resultedBlock, round + 1)
 
 
+def khafreDecipher():
+	binTextToDecrypt, binKey, rounds = enterValue(True)
+	print(f"\n\nbinTExt: {binTextToDecrypt}\nbinKey: {binKey}")
+	# Perform steps to retrieve binTextToEncrypt and binKey
+	# ...
+	# Reverse the encryption process
+
+	for _ in range(rounds):
+		for i in range(len(binTextToDecrypt)):
+			for j in range(len(binTextToDecrypt[i])):
+				binTextToDecrypt[i][j] = xorBinOperation(binTextToDecrypt[i][j], binKey[j])
+			binTextToDecrypt[i] = khafreDecryption(binTextToDecrypt[i])
+
+		print(f"before xor: {binTextToDecrypt}")
+
+
+
+	for i in range(len(binTextToDecrypt)):
+		for j in range(len(binTextToDecrypt[i])):
+			binTextToDecrypt[i][j] = xorBinOperation(binTextToDecrypt[i][j], binKey[j])
+
+	# Convert the decrypted binary text back to a string
+	print(binTextToDecrypt)
+	decryptedString = binTextToString(binTextToDecrypt)
+	return decryptedString
+
+
+decryptedResult = khafreDecipher()
+print(decryptedResult)	
