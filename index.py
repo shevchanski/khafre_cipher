@@ -1,8 +1,8 @@
 import numpy as np
-# Initial Permutation table
 import tables
-import sBoxs
-import random
+import readline
+# import sBoxs
+# import random
 
 BLOCK_LENGTH = 64
 KEY_LENGTH = 64
@@ -11,6 +11,18 @@ HALF_BLOCK = round(BLOCK_LENGTH/2)
 sBoxTable = tables.sBoxs
 
 # rgr
+
+
+# function checks if entered encrypted text belongs to hexadecimal symbols
+def check_hexText(key, required_length = 16):
+    if len(key) != required_length:
+        raise ValueError(f"The key must be {required_length} characters long.")
+
+    if not all(c in "0123456789abcdefABCDEF" for c in key):
+        raise ValueError("The key must consist of hexadecimal characters.")
+
+
+
 
 # basic function to work with text
 def textToBin(text):
@@ -130,16 +142,7 @@ def hexToBinText(hexString):
 
 
 
-def enterValue(isHexInputValue = False):
-	# textToEncrypt = str(input('Enter text to encrypt:'))
-	# key = str(input('Enter key:'))
-	# roundsOfEncryption = str(input('Enter number of encrypting rounds:'))
-	roundsOfEncryption = 1
-	textToEncrypt = "Oleksii" if not(isHexInputValue) else "fbfc5201adca1ef5"
-	key = "Shevchenko"
-	
-	print("Text:", textToEncrypt)
-	print("Key:", key)
+def analyseEnteredValue(textToEncrypt, key, isHexInputValue = False):
 
 	if not(isHexInputValue):
 		binText = textToBin(textToEncrypt)
@@ -147,9 +150,6 @@ def enterValue(isHexInputValue = False):
 	else:
 		binText = hexToBinText(textToEncrypt)
 		binKey = textToBin(key)
-
-	print("\nbinText:", binText, len(binText))
-	print("binKey:", binKey, len(binKey))
 
 	# here we entered value to exact length
 	if(len(binText) > 64):
@@ -172,10 +172,11 @@ def enterValue(isHexInputValue = False):
 	
 	resultBinKey = divideBlockBy2(binKey[0])
 
-	return resultBinText, resultBinKey, roundsOfEncryption
+	return resultBinText, resultBinKey
+# the end of part with operations which is used in the cipher
 
 
-
+# two functions below realize encryption algorithm
 def khafreEncryption(block, round = 8):
 	roundNumber = 8 - round
 	changedLeftBlock = process_left_block(block[0], roundNumber)
@@ -198,16 +199,12 @@ def khafreEncryption(block, round = 8):
 
 
 
-def KhafreCipher():
-	binTextToEncrypt, binKey, rounds = enterValue()
-
-	print(binTextToEncrypt)
+def KhafreCipher(textToEncrypt, key, rounds):
+	binTextToEncrypt, binKey = analyseEnteredValue(textToEncrypt, key)
 
 	for i in range(len(binTextToEncrypt)):
 		for j in range(len(binTextToEncrypt[i])):
 			binTextToEncrypt[i][j] = xorBinOperation(binTextToEncrypt[i][j], binKey[j])
-
-	print(f"After Xor: {binTextToEncrypt}")
 
 	for _ in range(rounds):
 		for i in range(len(binTextToEncrypt)):
@@ -216,19 +213,13 @@ def KhafreCipher():
 				binTextToEncrypt[i][j] = xorBinOperation(binTextToEncrypt[i][j], binKey[j])
 	
 	encryptedString = binTextToHex(binTextToEncrypt)
+	check_hexText(encryptedString)
+	print(f"\nEncrypted text: \n\t{encryptedString}\n\n")
 
-	return encryptedString
 	
 
 
-
-
-
-
-# enterValue()
-result = KhafreCipher()
-print(result,"\n\n")		
-
+# two functions below realize decryption algorithm
 def khafreDecryption(block, round=0):
 	roundNumber = 7-round
 	shiftAmount = 0
@@ -257,12 +248,8 @@ def khafreDecryption(block, round=0):
 	return khafreDecryption(resultedBlock, round + 1)
 
 
-def khafreDecipher():
-	binTextToDecrypt, binKey, rounds = enterValue(True)
-	print(f"\n\nbinTExt: {binTextToDecrypt}\nbinKey: {binKey}")
-	# Perform steps to retrieve binTextToEncrypt and binKey
-	# ...
-	# Reverse the encryption process
+def khafreDecipher(textToDecrypt, key, rounds):
+	binTextToDecrypt, binKey = analyseEnteredValue(textToDecrypt, key, True)
 
 	for _ in range(rounds):
 		for i in range(len(binTextToDecrypt)):
@@ -270,19 +257,63 @@ def khafreDecipher():
 				binTextToDecrypt[i][j] = xorBinOperation(binTextToDecrypt[i][j], binKey[j])
 			binTextToDecrypt[i] = khafreDecryption(binTextToDecrypt[i])
 
-		print(f"before xor: {binTextToDecrypt}")
-
-
-
 	for i in range(len(binTextToDecrypt)):
 		for j in range(len(binTextToDecrypt[i])):
 			binTextToDecrypt[i][j] = xorBinOperation(binTextToDecrypt[i][j], binKey[j])
 
 	# Convert the decrypted binary text back to a string
-	print(binTextToDecrypt)
 	decryptedString = binTextToString(binTextToDecrypt)
-	return decryptedString
+	print(f"\n\nDecrypted text: \n\t{decryptedString}\n\n")
 
 
-decryptedResult = khafreDecipher()
-print(decryptedResult)	
+
+
+# main function which starts the program
+
+def main():
+	while(True):
+		print("Choose an option:")
+		print("\t1. Encrypt")
+		print("\t2. Decrypt")
+		print("\t0. Exit")
+		choice = input("Enter your choice: ")
+		if choice == '1':
+			text = str(input("Enter text to encrypt: "))
+			key = str(input("Enter key:\n\t (Attention!!! Write down or remember entered key. It will be used for decryption)\n\t-> "))
+			while True:
+				try:
+					rounds = int(input("Rounds of encryption:\n\t (Attention!!! Write down or remember entered rounds of encryption. It will be used for decryption)\n\t->"))
+					break
+				except ValueError:
+					print("Please enter a valid number for rounds.")
+
+			KhafreCipher(text,key,rounds)
+		elif choice == '2':
+			while True:
+				try:
+					text = str(input("Enter text to decrypt (16 characters combination of letters from A-F and numbers from 0-9 ): "))
+					check_hexText(text)
+					break
+				except ValueError as e:
+					print(e)
+			print(text)
+
+			key = str(input("Enter key (which was used to encrypt): "))
+			
+			while True:
+				try:
+					rounds = int(input("Rounds of decryption:\n\t (Attention!!! Rounds of decryption must be equal to number of encryption rounds.)\n\t->"))
+					break
+				except ValueError:
+					print("Please enter a valid number for rounds.")
+
+			khafreDecipher(text, key, rounds)
+		elif choice == '0':
+			print("Closing the program ...")
+			return
+		else:
+			print('\n\tYour entered incorrect number of menu options\n')
+
+if __name__ == "__main__":
+	readline.parse_and_bind('set editing-mode vi')
+	main()
