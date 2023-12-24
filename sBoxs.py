@@ -1,6 +1,8 @@
 import tables
 import random
 
+
+
 def print_sbox(sboxs):
     for block in sboxs:
         print(" ".join(f"{val:02X}" for row in block for val in row))
